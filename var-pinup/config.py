@@ -26,7 +26,7 @@ class ExperimentConfig:
     directed: bool = False  # if True, only (i,j) is modulated
 
     # --- Edge processing / SFA ---
-    smoothing_W: int = 50
+    smoothing_W: int = 100
     n_sfa_components: int = 2
 
 

@@ -58,7 +58,7 @@ def run_once(
     E_raw, pairs = pearson_edges_unwrapped(x)
     E_sm = movavg_cols(E_raw, cfg.smoothing_W)
     E_sm = zscore_cols(E_sm)
-    z_sm = np.convolve(z, np.ones(cfg.smoothing_W)/cfg.smoothing_W, mode="same")
+    z_sm = np.convolve(z, np.ones(cfg.smoothing_W)/cfg.smoothing_W, mode="same") #WHY DO WE NEED TO MOVING AVERAGE THE TVP??????
     Y, deltas, _ = run_sfa_on_edges(E_sm, n_components=cfg.n_sfa_components)
     y1 = Y[:, 0]
 
