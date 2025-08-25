@@ -9,10 +9,10 @@ class ExperimentConfig:
     T: int = 5000
     Sigma: float = 0.01
     seed: int = 123
-
+ 
     #transition matrix
     self_memory: float = 0.35 #ie, the strength of the diagonal entries. 
-    background_coupling: float = 0.0 
+    background_coupling: float = 0.0 #TODO make it randomly sampled from distribution. 
 
     #tvp
     tvp_amp: float = 0.6
@@ -21,9 +21,11 @@ class ExperimentConfig:
 
     # --- Which entries are modulated by the TVP ---
     # symmetric link by default (i,j) and (j,i)
-    sym_link: Tuple[int, int] = (0, 1)
+    sym_links: List[Tuple[int, int]] = field(default_factory=lambda: [(0, 1)]) #default val is only one link
     gain: float = 0.9
-    directed: bool = False  # if True, only (i,j) is modulated
+    directed: bool = False  
+
+    link_gains: Dict[Tuple[int, int], float] = field(default_factory=dict) #overrides global gain 
 
     # --- Edge processing / SFA ---
     smoothing_W: int = 100
@@ -45,10 +47,17 @@ def build_A0(cfg: ExperimentConfig) -> np.ndarray:
                     A0[i, j] = cfg.background_coupling
     return A0
 
-def build_gains(cfg: ExperimentConfig) -> Dict[Tuple[int,int], float]:
-    i, j = cfg.sym_link
-    g = {(i, j): cfg.gain}
-    if not cfg.directed:
-        g[(j, i)] = cfg.gain
-    return g
+def build_gains(cfg: ExperimentConfig)  -> Dict[Tuple[int, int], float]:
+    gains: Dict[Tuple[int, int], float] = {}
+    if cfg.link_gains:
+        for (i, j), g in cfg.link_gains.items():
+            gains[(i, j)] = g
+            if not cfg.directed:
+                gains[(j, i)] = g
+    else:
+        for (i, j) in cfg.sym_links:
+            gains[(i, j)] = cfg.gain
+            if not cfg.directed:
+                gains[(j, i)] = cfg.gain
+    return gains
 
