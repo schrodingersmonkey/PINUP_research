@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from pearson_edge import pearson_edges_unwrapped, zscore_cols
 from sfa import run_sfa_on_edges
 from var_simulate import tvp_var1
-from utils import movavg_cols, r2_from_single, r2_from_multi
+from utils import movavg_cols, r2_from_single, r2_from_multi, add_smart_legend
 from config import ExperimentConfig, make_tvp, build_A0, build_gains
 import argparse
 
@@ -34,7 +34,7 @@ def _dump_json(path, data: dict):
 
 def _savefig(path):
     plt.tight_layout()
-    plt.savefig(path, dpi=150)
+    plt.savefig(path, dpi=150, bbox_inches='tight')
     plt.close()
 
 def run_once(
@@ -100,18 +100,15 @@ def run_once(
         _dump_json(os.path.join(out_dir, "config.json"), cfg_dict)
         _dump_json(os.path.join(out_dir, "metrics.json"), summary)
 
-    # --- figures (save PNGs; optionally also show) ---
-    # (A) edges (smoothed) + z_sm
-    plt.figure(figsize=(10, 3.2))
+    fig, ax = plt.subplots(figsize=(10, 3.2))
     for idx, p in enumerate(pairs):
-        plt.plot(E_sm[:, idx], lw=0.8, label=f"edge {p}")
-    plt.plot(z_sm, lw=1.5, label="z(t) (smoothed)")
-    plt.title("Smoothed instantaneous edges vs smoothed TVP")
-    plt.xlabel("time"); plt.legend(ncol=len(pairs))
-    if save_assets:
-        _savefig(os.path.join(out_dir, "edges_vs_tvp.png"))
-    if visualize:
-        plt.show()
+        ax.plot(E_sm[:, idx], lw=0.8, label=f"edge {p}")
+    ax.plot(z_sm, lw=1.5, label="z(t) (smoothed)")
+    ax.set_title("Smoothed instantaneous edges vs smoothed TVP")
+    ax.set_xlabel("time")
+    add_smart_legend(ax)  # <-- adaptive legend
+    if save_assets: _savefig(os.path.join(out_dir, "edges_vs_tvp.png"))
+    if visualize: plt.show()
 
     # (B) SFA #1 vs z_sm (both z-scored)
     zz = (z_sm - z_sm.mean()) / (z_sm.std() + 1e-8)
@@ -125,18 +122,27 @@ def run_once(
     if visualize:
         plt.show()
 
-    # (C) Reconstructed TVP from SFA #1
-    r = np.corrcoef(y1z, z_sm - z_sm.mean())[0, 1]
-    zhat_1 = r * y1z + z_sm.mean()
-    plt.figure(figsize=(10, 3.2))
-    plt.plot(z_sm, label="z(t) (smoothed)")
-    plt.plot(zhat_1, label=f"recon from SFA1 (R²={R2_1:.2f})")
-    plt.title("TVP reconstruction from SFA #1")
-    plt.xlabel("time"); plt.legend()
-    if save_assets:
-        _savefig(os.path.join(out_dir, "tvp_reconstruction.png"))
-    if visualize:
-        plt.show()
+
+    # C NODES (smoothed & z-scored) + z_sm
+    x_sm = movavg_cols(x, cfg.smoothing_W)
+    x_sm = zscore_cols(x_sm)
+
+    # correlation of each node with the (smoothed) TVP
+    node_vs_tvp = [
+        np.corrcoef(x_sm[:, i], z_sm - z_sm.mean())[0, 1]
+        for i in range(x_sm.shape[1])
+    ]
+    print("node vs z_sm:", list(enumerate(node_vs_tvp)))
+
+    fig, ax = plt.subplots(figsize=(10, 3.2))
+    for i in range(x_sm.shape[1]):
+        ax.plot(x_sm[:, i], lw=0.8, label=f"node {i}")
+    ax.plot(z_sm, lw=1.5, label="z(t) (smoothed)")
+    ax.set_title("Smoothed node signals vs smoothed TVP")
+    ax.set_xlabel("time")
+    add_smart_legend(ax)
+    if save_assets: _savefig(os.path.join(out_dir, "nodes_vs_tvp.png"))
+    if visualize: plt.show()
 
     # optionally also save raw arrays for later analysis
     if save_assets:

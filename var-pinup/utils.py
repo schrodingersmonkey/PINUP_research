@@ -28,3 +28,36 @@ def r2_from_multi(Y, z):
     sse = np.sum((zc - zhat) ** 2)
     sst = np.sum(zc ** 2)
     return 1.0 - sse / sst, zhat
+
+
+
+
+### visualisation 
+# --- helper: place a legend that adapts to N lines
+def add_smart_legend(ax, max_rows_right=12, min_font=7):
+    """
+    If there are <= max_rows_right items: put legend on the right (single column).
+    Otherwise: put a multi-column legend at the bottom.
+    Returns the legend artist.
+    """
+    import math
+    fig = ax.figure
+    handles, labels = ax.get_legend_handles_labels()
+    n = len(labels)
+
+    if n <= max_rows_right:
+        # right-side, single column
+        fs = max(min_font, 10 - 0.2 * max(0, n - 6))
+        leg = ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0),
+                        borderaxespad=0., frameon=False, fontsize=fs)
+        # make room on the right
+        fig.subplots_adjust(right=0.78)
+    else:
+        # bottom legend with multiple columns
+        cols = min(n, math.ceil(n / max_rows_right))
+        fs = max(min_font, 9 - 0.1 * max(0, cols - 4))
+        leg = fig.legend(handles, labels, loc='lower center',
+                         ncol=cols, frameon=False, fontsize=fs)
+        # make room at the bottom
+        fig.subplots_adjust(bottom=0.22)
+    return leg
