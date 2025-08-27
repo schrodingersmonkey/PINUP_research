@@ -1,2 +1,6 @@
 simulation_notebooks
 var-pinup/results
+fsfa
+var-pinup/sweeps
+
+var-pinup/config.py

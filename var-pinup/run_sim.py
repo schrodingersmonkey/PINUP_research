@@ -8,6 +8,7 @@ from sfa import run_sfa_on_edges
 from var_simulate import tvp_var1
 from utils import movavg_cols, r2_from_single, r2_from_multi
 from config import ExperimentConfig, make_tvp, build_A0, build_gains
+import argparse
 
 
 
@@ -58,7 +59,9 @@ def run_once(
     E_raw, pairs = pearson_edges_unwrapped(x)
     E_sm = movavg_cols(E_raw, cfg.smoothing_W)
     E_sm = zscore_cols(E_sm)
-    z_sm = np.convolve(z, np.ones(cfg.smoothing_W)/cfg.smoothing_W, mode="same") #WHY DO WE NEED TO MOVING AVERAGE THE TVP??????
+    z_sm = np.convolve(z, np.ones(cfg.smoothing_W)/cfg.smoothing_W, mode="same") 
+    #we need to smooth here too so both the tvp and edges have the same temporal resolution
+
     Y, deltas, _ = run_sfa_on_edges(E_sm, n_components=cfg.n_sfa_components)
     y1 = Y[:, 0]
 
@@ -78,13 +81,22 @@ def run_once(
         "deltas": deltas,
     }
 
+    edge_corrs = [np.corrcoef(y1z, E_sm[:, k])[0,1] for k in range(E_sm.shape[1])]
+    print("corr between sfa 1 and edge pairs",list(zip(pairs, edge_corrs)))
+# You'll likely see ~±1 for (0,1) and smaller for the others.
+
+# 2) correlation of each edge with the (smoothed) TVP
+    edge_vs_tvp = [np.corrcoef(E_sm[:, k], z_sm - z_sm.mean())[0,1] for k in range(E_sm.shape[1])]
+    print("edge vs z_sm:", list(zip(pairs, edge_vs_tvp)))
+
+    cfg_dict = asdict(cfg)              # << use asdict, not __dict__
+    cfg_dict["tvp_phi"] = _to_jsonable(cfg.tvp_phi)
     # --- output directory & saving ---
     out_dir = None
     if save_assets:
         out_dir = _mk_run_dir(out_root, run_name)
         # save config and metrics
-        cfg_dict = asdict(cfg)              # << use asdict, not __dict__
-        cfg_dict["tvp_phi"] = _to_jsonable(cfg.tvp_phi)
+        
         _dump_json(os.path.join(out_dir, "config.json"), cfg_dict)
         _dump_json(os.path.join(out_dir, "metrics.json"), summary)
 
@@ -140,6 +152,9 @@ def run_once(
 
 
 if __name__ == "__main__":
+
+    # Build base config (your existing pattern)
     cfg = ExperimentConfig()
-    summary = run_once(cfg, visualize=True, save_assets=True, out_root="results", run_name=None)
+
+    summary = run_once(cfg, visualize=True, save_assets=True, out_root="results", run_name=cfg.exp_name)
     print("Saved to:", summary["out_dir"])
